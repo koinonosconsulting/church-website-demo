@@ -1,0 +1,213 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["clientExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL") // e.g. postgresql://user:pass@localhost:5432/dbname
+}
+
+/**
+ * Full schema based on the Lightline Church blueprint.
+ * NOTE: RecurringSubscription model removed (one-off donations only).
+ */
+
+enum Role {
+  SUPER_ADMIN
+  BRANCH_ADMIN
+  PROJECT_LEAD
+  FINANCE
+  CONTENT_ADMIN
+  VOLUNTEER
+  DONOR
+}
+
+/**
+ * Core user / staff / donor
+ */
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  phone     String?
+  password  String?
+  role      Role     @default(DONOR)
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  donations     Donation[]     @relation("user_donations")
+  auditLogs     AuditLog[]
+  notifications Notification[]
+}
+
+/**
+ * Physical locations / church branches
+ */
+model Branch {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  address      String?
+  city         String?
+  contactEmail String?
+  contactPhone String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  projects  Project[]
+  users     User[]
+  donations Donation[]
+
+  collectedAmount Float @default(0) // 👈 ADD THIS LINE
+
+  @@index([createdAt])
+}
+
+/**
+ * Fundraising projects / campaigns
+ */
+model Project {
+  id              String    @id @default(cuid())
+  title           String
+  slug            String    @unique
+  description     String?
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
+  targetAmount    Float?
+  collectedAmount Float     @default(0)
+  isActive        Boolean   @default(true)
+  startDate       DateTime?
+  endDate         DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  donations Donation[]
+
+  @@index([createdAt])
+}
+
+/**
+ * Donation record for one-off donations
+ */
+model Donation {
+  id                String   @id @default(cuid())
+  donorId           String?
+  donor             User?    @relation("user_donations", fields: [donorId], references: [id])
+  donorName         String?
+  donorEmail        String
+  donorPhone        String?
+  purpose           String
+  note              String?
+  amount            Float
+  currency          String   @default("NGN")
+  branchId          String
+  branch            Branch   @relation(fields: [branchId], references: [id])
+  projectId         String?
+  project           Project? @relation(fields: [projectId], references: [id])
+  status            String   @default("PENDING")
+  reference         String   @unique
+  provider          String   @default("paystack")
+  providerRef       String?
+  authorizationCode String? // 👈 add this line
+  meta              Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([reference])
+}
+
+/**
+ * Sermons / media
+ */
+model Sermon {
+  id        String    @id @default(cuid())
+  title     String
+  slug      String    @unique
+  speaker   String?
+  series    String?
+  videoUrl  String?
+  audioUrl  String?
+  notesUrl  String?
+  date      DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([createdAt])
+}
+
+/**
+ * Events
+ */
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String?
+  dateStart   DateTime?
+  dateEnd     DateTime?
+  location    String?
+  capacity    Int?
+  isFeatured  Boolean  @default(false) // optional override
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
+/**
+ * Simple audit log for admin actions
+ */
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String? // actor (nullable for system jobs)
+  user         User?    @relation(fields: [userId], references: [id])
+  action       String
+  resourceType String? // e.g., "Donation", "Project"
+  resourceId   String?
+  meta         Json?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/**
+ * General settings (key-value)
+ */
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/**
+ * Cached heavy reports to speed admin UI
+ */
+model ReportCache {
+  id       String   @id @default(cuid())
+  type     String
+  data     Json
+  cachedAt DateTime @default(now())
+}
+
+/**
+ * Notifications (optional)
+ */
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  type      String
+  message   String
+  meta      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

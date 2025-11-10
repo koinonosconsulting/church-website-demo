@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Branch" ADD COLUMN     "collectedAmount" DOUBLE PRECISION NOT NULL DEFAULT 0;
