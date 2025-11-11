@@ -4,6 +4,20 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 /**
+ * Type for a branch with its donations
+ */
+type BranchWithDonations = {
+  id: string;
+  name: string;
+  slug: string;
+  city: string | null;
+  donations: {
+    status: string;
+    amount: number;
+  }[];
+};
+
+/**
  * GET all branches with donation stats
  */
 export async function GET() {
@@ -13,7 +27,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    const data = branches.map((b) => ({
+    const data = branches.map((b: BranchWithDonations) => ({
       id: b.id,
       name: b.name,
       slug: b.slug,
