@@ -1,15 +1,19 @@
 // src/app/api/admin/branches/[id]/route.ts
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 /**
  * PUT /api/admin/branches/[id]
  * Updates branch fields safely.
  */
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id } = params;
+    const { id } = await context.params; // <-- await the Promise
+
     const { name, slug: inputSlug, city } = await req.json();
 
     if (!name || !name.trim()) {
