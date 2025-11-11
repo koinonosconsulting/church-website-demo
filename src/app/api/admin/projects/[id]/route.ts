@@ -1,6 +1,7 @@
 // src/app/api/admin/projects/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Donation } from "@prisma/client"; // 👈 Import the Prisma type for best practice
 
 // Define a type for the project select result
 type ProjectAmount = { collectedAmount?: number };
@@ -44,11 +45,14 @@ export async function DELETE(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const donations = await prisma.donation.findMany({ where: { projectId: id } });
+    // Since we are using the full Donation model from prisma, we cast the array type
+    const donations: Donation[] = await prisma.donation.findMany({ where: { projectId: id } });
+    
     if (donations.length > 0) {
       // Recalculate collectedAmount before returning error
+      // FIX: Explicitly type 'd' in the filter function using the imported Donation type
       const collectedAmount = donations
-        .filter((d) => d.status === "SUCCESS")
+        .filter((d: Donation) => d.status === "SUCCESS")
         .reduce((sum: number, d: { amount: number }) => sum + d.amount, 0);
 
       await prisma.project.update({ where: { id }, data: { collectedAmount } });
@@ -99,8 +103,11 @@ export async function PUT(
       },
     });
 
-    const donations = await prisma.donation.findMany({
+    // Since we are finding by status, we can't rely on the initial Donation type from prisma.
+    // We explicitly define the required shape of the found donations for type safety.
+    const donations: { amount: number }[] = await prisma.donation.findMany({
       where: { projectId: id, status: "SUCCESS" },
+      select: { amount: true } // Select only the required field
     });
 
     // Explicitly type sum and d
