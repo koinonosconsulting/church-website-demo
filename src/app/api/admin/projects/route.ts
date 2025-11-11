@@ -1,13 +1,26 @@
 // src/app/api/admin/projects/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client"; // 👈 New import for type utilities
+
+// 1. Define the exact payload/schema returned by the query (Project + Branch + Donations)
+const projectWithRelations = Prisma.validator<Prisma.ProjectDefaultArgs>()({
+  include: {
+    branch: true,
+    donations: true,
+  },
+});
+
+type ProjectPayload = Prisma.ProjectGetPayload<typeof projectWithRelations>;
+
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const branchId = url.searchParams.get("branchId");
 
-    const projects = await prisma.project.findMany({
+    // 2. The result of this query is now correctly typed as ProjectPayload[]
+    const projects: ProjectPayload[] = await prisma.project.findMany({
       where: branchId ? { branchId } : {},
       include: {
         branch: true,
@@ -16,7 +29,8 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    const formatted = projects.map((p) => ({
+    // 3. Apply the type to the map callback 'p'
+    const formatted = projects.map((p: ProjectPayload) => ({
       id: p.id,
       title: p.title,
       branchId: p.branchId,
