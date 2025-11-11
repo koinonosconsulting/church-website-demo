@@ -2,19 +2,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+// Define a type for the project select result
+type ProjectAmount = { collectedAmount?: number };
+
 /**
  * Helper: Recalculate total collected amount for a branch
  */
 async function recalcBranchTotal(branchId: string | null | undefined) {
   if (!branchId) return 0;
 
-  const projects = await prisma.project.findMany({
+  const projects: ProjectAmount[] = await prisma.project.findMany({
     where: { branchId },
     select: { collectedAmount: true },
   });
 
-  // Explicitly type sum as number
-  const branchTotal = projects.reduce<number>((sum, p) => sum + (p.collectedAmount || 0), 0);
+  // Explicitly type sum and p to satisfy TypeScript
+  const branchTotal = projects.reduce((sum: number, p: ProjectAmount) => sum + (p.collectedAmount || 0), 0);
 
   await prisma.branch.update({
     where: { id: branchId },
@@ -26,6 +29,8 @@ async function recalcBranchTotal(branchId: string | null | undefined) {
 
 /**
  * DELETE /api/admin/projects/[id]
+ * Deletes a project — blocks deletion if it already has donations.
+ * Recalculates project + branch totals as needed.
  */
 export async function DELETE(
   req: NextRequest,
@@ -41,9 +46,10 @@ export async function DELETE(
 
     const donations = await prisma.donation.findMany({ where: { projectId: id } });
     if (donations.length > 0) {
+      // Recalculate collectedAmount before returning error
       const collectedAmount = donations
         .filter((d) => d.status === "SUCCESS")
-        .reduce<number>((sum, d) => sum + d.amount, 0);
+        .reduce((sum: number, d: { amount: number }) => sum + d.amount, 0);
 
       await prisma.project.update({ where: { id }, data: { collectedAmount } });
       await recalcBranchTotal(project.branchId);
@@ -54,6 +60,7 @@ export async function DELETE(
       );
     }
 
+    // No donations — safe to delete
     await prisma.project.delete({ where: { id } });
     await recalcBranchTotal(project.branchId);
 
@@ -66,6 +73,7 @@ export async function DELETE(
 
 /**
  * PUT /api/admin/projects/[id]
+ * Updates project fields and recalculates project + branch totals.
  */
 export async function PUT(
   req: NextRequest,
@@ -95,7 +103,11 @@ export async function PUT(
       where: { projectId: id, status: "SUCCESS" },
     });
 
-    const collectedAmount = donations.reduce<number>((sum, d) => sum + d.amount, 0);
+    // Explicitly type sum and d
+    const collectedAmount = donations.reduce(
+      (sum: number, d: { amount: number }) => sum + d.amount,
+      0
+    );
 
     await prisma.project.update({ where: { id }, data: { collectedAmount } });
     const branchTotal = await recalcBranchTotal(data.branchId);
