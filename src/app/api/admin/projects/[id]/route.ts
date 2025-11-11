@@ -13,7 +13,8 @@ async function recalcBranchTotal(branchId: string | null | undefined) {
     select: { collectedAmount: true },
   });
 
-  const branchTotal = projects.reduce((sum, p) => sum + (p.collectedAmount || 0), 0);
+  // Explicitly type sum as number
+  const branchTotal = projects.reduce<number>((sum, p) => sum + (p.collectedAmount || 0), 0);
 
   await prisma.branch.update({
     where: { id: branchId },
@@ -42,7 +43,7 @@ export async function DELETE(
     if (donations.length > 0) {
       const collectedAmount = donations
         .filter((d) => d.status === "SUCCESS")
-        .reduce((sum, d) => sum + d.amount, 0);
+        .reduce<number>((sum, d) => sum + d.amount, 0);
 
       await prisma.project.update({ where: { id }, data: { collectedAmount } });
       await recalcBranchTotal(project.branchId);
@@ -94,7 +95,7 @@ export async function PUT(
       where: { projectId: id, status: "SUCCESS" },
     });
 
-    const collectedAmount = donations.reduce((sum, d) => sum + d.amount, 0);
+    const collectedAmount = donations.reduce<number>((sum, d) => sum + d.amount, 0);
 
     await prisma.project.update({ where: { id }, data: { collectedAmount } });
     const branchTotal = await recalcBranchTotal(data.branchId);
