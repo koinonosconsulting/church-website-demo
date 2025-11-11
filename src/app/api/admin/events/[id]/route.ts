@@ -1,5 +1,5 @@
 // src/app/api/admin/events/[id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { updateNextFeaturedEvent } from "@/lib/events";
 
@@ -7,9 +7,13 @@ import { updateNextFeaturedEvent } from "@/lib/events";
  * PUT /api/admin/events/[id]
  * Update event
  */
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id } = params;
+    const { id } = await context.params;
+
     const { title, slug: inputSlug, description, dateStart, dateEnd, location, capacity } = await req.json();
 
     const slug = inputSlug?.trim()
@@ -29,7 +33,6 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       },
     });
 
-    // ✅ Update featured event after editing
     await updateNextFeaturedEvent();
 
     return NextResponse.json(updated);
@@ -42,12 +45,14 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 /**
  * DELETE /api/admin/events/[id]
  */
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id } = params;
-    await prisma.event.delete({ where: { id } });
+    const { id } = await context.params;
 
-    // ✅ Update featured event after deletion
+    await prisma.event.delete({ where: { id } });
     await updateNextFeaturedEvent();
 
     return NextResponse.json({ deleted: true });
