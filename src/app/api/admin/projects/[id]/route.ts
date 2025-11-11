@@ -1,10 +1,16 @@
 // src/app/api/admin/projects/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Donation } from "@prisma/client"; // 👈 Import the Prisma type for best practice
 
 // Define a type for the project select result
 type ProjectAmount = { collectedAmount?: number };
+
+// Define a type with the minimum required fields for the donation logic
+// We cannot rely on direct export from @prisma/client, so we define what we need.
+type DonationPartial = {
+  status: string | null | undefined;
+  amount: number;
+};
 
 /**
  * Helper: Recalculate total collected amount for a branch
@@ -45,15 +51,18 @@ export async function DELETE(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Since we are using the full Donation model from prisma, we cast the array type
-    const donations: Donation[] = await prisma.donation.findMany({ where: { projectId: id } });
+    // Select only the necessary fields to satisfy the DonationPartial type
+    const donations: DonationPartial[] = await prisma.donation.findMany({
+      where: { projectId: id },
+      select: { status: true, amount: true }
+    });
     
     if (donations.length > 0) {
       // Recalculate collectedAmount before returning error
-      // FIX: Explicitly type 'd' in the filter function using the imported Donation type
+      // FIX: Use DonationPartial type for filter and reduce
       const collectedAmount = donations
-        .filter((d: Donation) => d.status === "SUCCESS")
-        .reduce((sum: number, d: { amount: number }) => sum + d.amount, 0);
+        .filter((d: DonationPartial) => d.status === "SUCCESS")
+        .reduce((sum: number, d: DonationPartial) => sum + d.amount, 0);
 
       await prisma.project.update({ where: { id }, data: { collectedAmount } });
       await recalcBranchTotal(project.branchId);
@@ -103,11 +112,10 @@ export async function PUT(
       },
     });
 
-    // Since we are finding by status, we can't rely on the initial Donation type from prisma.
-    // We explicitly define the required shape of the found donations for type safety.
+    // Select only the amount field needed for calculation
     const donations: { amount: number }[] = await prisma.donation.findMany({
       where: { projectId: id, status: "SUCCESS" },
-      select: { amount: true } // Select only the required field
+      select: { amount: true },
     });
 
     // Explicitly type sum and d
