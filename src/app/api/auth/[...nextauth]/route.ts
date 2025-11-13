@@ -1,4 +1,6 @@
 // src/app/api/auth/[...nextauth]/route.ts
+
 import { handlers } from "@/lib/auth";
 
-export { handlers as GET, handlers as POST };
+// Correct export syntax for Next.js 14–16
+export const { GET, POST } = handlers;
