@@ -1,4 +1,6 @@
 // src/app/admin/layout.tsx
+"use client";
+
 import { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -29,6 +31,7 @@ function AdminSidebar() {
     { href: "/admin/donations", label: "Donations", icon: "💰" },
     { href: "/admin/branches", label: "Branches", icon: "🏢" },
     { href: "/admin/projects", label: "Projects", icon: "🚀" },
+    { href: "/admin/events", label: "Events", icon: "📅" },
     { href: "/admin/settings", label: "Settings", icon: "⚙️" },
   ];
 
@@ -93,11 +96,19 @@ function AdminSidebar() {
 }
 
 function AdminHeader() {
+  const pathname = usePathname();
+  
+  // Get current page title based on pathname
+  const getPageTitle = () => {
+    const route = pathname.split('/').pop() || 'dashboard';
+    return route.charAt(0).toUpperCase() + route.slice(1);
+  };
+
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
       <div className="flex items-center justify-between p-6">
         <div>
-          <h1 className="text-2xl font-bold text-[#0B1D40]">Admin Dashboard</h1>
+          <h1 className="text-2xl font-bold text-[#0B1D40] capitalize">{getPageTitle()}</h1>
           <p className="text-gray-600">Manage your church operations</p>
         </div>
         
@@ -107,8 +118,14 @@ function AdminHeader() {
             <span className="absolute top-1 right-1 w-2 h-2 bg-[#F7B500] rounded-full"></span>
           </button>
           
-          <div className="w-8 h-8 bg-gradient-to-r from-[#F7B500] to-[#4FC3F7] rounded-full flex items-center justify-center">
-            <span className="text-white font-bold text-sm">A</span>
+          <div className="flex items-center space-x-3">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-medium text-gray-900">Admin User</p>
+              <p className="text-xs text-gray-500">Administrator</p>
+            </div>
+            <div className="w-8 h-8 bg-gradient-to-r from-[#F7B500] to-[#4FC3F7] rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-sm">A</span>
+            </div>
           </div>
         </div>
       </div>
