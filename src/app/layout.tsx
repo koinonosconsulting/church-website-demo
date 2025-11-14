@@ -1,10 +1,8 @@
 // src/app/layout.tsx
-
 import type { Metadata } from "next";
 import "./globals.css";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
 import { Toaster } from "react-hot-toast";
+import { SessionProvider } from "@/providers/SessionProvider";
 
 export const metadata: Metadata = {
   title: "Lightline Church - Following the Light. Changing the World.",
@@ -19,16 +17,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body 
-        className="min-h-screen flex flex-col bg-gray-50 text-gray-900"
+        className="min-h-screen bg-gray-50 text-gray-900"
         suppressHydrationWarning
       >
-        {/* Client-side only components */}
-        <div suppressHydrationWarning>
-          <Navbar />
-          <main className="flex-1 pt-16">{children}</main>
-          <Footer />
-          <Toaster position="top-right" />
-        </div>
+        <SessionProvider>
+          {children}
+        </SessionProvider>
+        <Toaster position="top-right" />
       </body>
     </html>
   );

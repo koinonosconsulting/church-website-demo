@@ -5,10 +5,10 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcrypt";
+import { Role } from "@prisma/client";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -18,7 +18,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         try {
-          console.log("Login attempt:", credentials);
+          console.log("Login attempt:", credentials?.email);
 
           if (!credentials?.email || !credentials?.password) {
             console.log("Missing email or password");
@@ -49,7 +49,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             id: user.id,
             name: user.name,
             email: user.email,
-            role: user.role,
+            role: user.role as Role,
           };
         } catch (err) {
           console.error("Authorize error:", err);
@@ -58,11 +58,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-
   pages: {
-    signIn: "/login", // login page
+    signIn: "/login",
   },
-
   session: { strategy: "jwt" },
   secret: process.env.NEXTAUTH_SECRET,
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = user.role;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as Role;
+      }
+      return session;
+    },
+  },
 });
