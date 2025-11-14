@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
-import { SessionProvider } from "@/providers/SessionProvider";
+import { AppProviders } from "@/providers/AppProviders";
 
 export const metadata: Metadata = {
   title: "Lightline Church - Following the Light. Changing the World.",
@@ -20,9 +20,9 @@ export default function RootLayout({
         className="min-h-screen bg-gray-50 text-gray-900"
         suppressHydrationWarning
       >
-        <SessionProvider>
+        <AppProviders>
           {children}
-        </SessionProvider>
+        </AppProviders>
         <Toaster position="top-right" />
       </body>
     </html>

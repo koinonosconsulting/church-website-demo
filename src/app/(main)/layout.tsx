@@ -1,5 +1,4 @@
 // src/app/(main)/layout.tsx
-
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
