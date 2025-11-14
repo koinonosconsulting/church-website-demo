@@ -14,6 +14,9 @@ interface Branch {
 interface Project {
   id: string;
   title: string;
+  description?: string;
+  targetAmount?: number;
+  collectedAmount?: number;
 }
 
 export default function DonationForm() {
@@ -22,10 +25,9 @@ export default function DonationForm() {
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState<number>(5000);
   const [customAmount, setCustomAmount] = useState("");
-  const [purpose, setPurpose] = useState("Tithe");
+  const [purpose, setPurpose] = useState(""); // Changed from "Tithe" to empty string
   const [branchId, setBranchId] = useState("");
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [projectId, setProjectId] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
   const [recurring, setRecurring] = useState(false);
   const [note, setNote] = useState("");
@@ -43,11 +45,14 @@ export default function DonationForm() {
   }, []);
 
   useEffect(() => {
-    // Fetch projects for selected branch
+    // Fetch projects for selected branch - these will be our giving purposes
     if (!branchId) return;
     axios.get(`/api/admin/projects?branchId=${branchId}`).then((res) => {
       setProjects(res.data);
-      setProjectId(res.data.length > 0 ? res.data[0].id : "");
+      // Set the first project as default purpose if available
+      if (res.data.length > 0) {
+        setPurpose(res.data[0].id);
+      }
     });
   }, [branchId]);
 
@@ -69,11 +74,15 @@ export default function DonationForm() {
     try {
       const finalAmount = customAmount ? Number(customAmount) : amount;
       
+      // Find the selected project to get its title for the purpose
+      const selectedProject = projects.find(p => p.id === purpose);
+      const purposeText = selectedProject ? selectedProject.title : "General Donation";
+      
       const res = await axios.post("/api/payments/checkout", {
-        purpose,
+        purpose: purposeText, // Use project title as purpose
         amount: finalAmount,
         branchId,
-        projectId: projectId || null,
+        projectId: purpose, // This is the project ID
         recurring,
         note,
         donor: { name, email, phone },
@@ -93,6 +102,9 @@ export default function DonationForm() {
   }
 
   const displayAmount = customAmount ? Number(customAmount) : amount;
+
+  // Find the selected project for display
+  const selectedProject = projects.find(p => p.id === purpose);
 
   return (
     <motion.form 
@@ -187,39 +199,23 @@ export default function DonationForm() {
 
         <div>
           <label className="block text-sm font-medium text-amber-800 mb-2">Giving Purpose</label>
-          <div className="relative">
-            <select
-              value={purpose}
-              onChange={(e) => setPurpose(e.target.value)}
-              className="w-full border border-amber-200 bg-white/80 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#F7B500] focus:border-transparent transition-all duration-200 appearance-none cursor-pointer text-amber-900 font-medium"
-            >
-              <option value="Tithe" className="text-amber-900">Tithe</option>
-              <option value="Offering" className="text-amber-900">Offering</option>
-              <option value="Building" className="text-amber-900">Building Fund</option>
-              <option value="Special Project" className="text-amber-900">Special Project</option>
-              <option value="Outreach" className="text-amber-900">Outreach</option>
-              <option value="Other" className="text-amber-900">Other</option>
-            </select>
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-              <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+          {projects.length === 0 ? (
+            <div className="text-center p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+              <p className="text-yellow-700 text-sm">
+                No active projects found for this branch. Please contact the church for giving options.
+              </p>
             </div>
-          </div>
-        </div>
-
-        {(purpose === "Building" || purpose === "Special Project") && projects.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-amber-800 mb-2">Select Project</label>
+          ) : (
             <div className="relative">
               <select
-                value={projectId}
-                onChange={(e) => setProjectId(e.target.value)}
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value)}
                 className="w-full border border-amber-200 bg-white/80 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#F7B500] focus:border-transparent transition-all duration-200 appearance-none cursor-pointer text-amber-900 font-medium"
+                required
               >
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id} className="text-amber-900">
-                    {p.title}
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id} className="text-amber-900">
+                    {project.title}
                   </option>
                 ))}
               </select>
@@ -228,6 +224,37 @@ export default function DonationForm() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Project Description */}
+        {selectedProject && selectedProject.description && (
+          <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+            <p className="text-sm text-blue-800">
+              <strong>About this project:</strong> {selectedProject.description}
+            </p>
+          </div>
+        )}
+
+        {/* Project Progress */}
+        {selectedProject && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm text-amber-800">
+              <span>Progress</span>
+              <span>
+                ₦{(selectedProject.collectedAmount || 0).toLocaleString()} of ₦{(selectedProject.targetAmount || 0).toLocaleString()} raised
+              </span>
+            </div>
+            <div className="w-full bg-amber-200 rounded-full h-2">
+              <div
+                className="bg-gradient-to-r from-[#F7B500] to-amber-500 h-2 rounded-full transition-all duration-500"
+                style={{
+                  width: `${selectedProject.targetAmount && selectedProject.targetAmount > 0 
+                    ? Math.min(((selectedProject.collectedAmount || 0) / selectedProject.targetAmount) * 100, 100) 
+                    : 0}%`
+                }}
+              />
             </div>
           </div>
         )}
@@ -307,9 +334,9 @@ export default function DonationForm() {
       {/* Submit Button */}
       <motion.button
         type="submit"
-        disabled={loading || displayAmount < 100}
-        whileHover={{ scale: loading || displayAmount < 100 ? 1 : 1.02 }}
-        whileTap={{ scale: loading || displayAmount < 100 ? 1 : 0.98 }}
+        disabled={loading || displayAmount < 100 || projects.length === 0}
+        whileHover={{ scale: loading || displayAmount < 100 || projects.length === 0 ? 1 : 1.02 }}
+        whileTap={{ scale: loading || displayAmount < 100 || projects.length === 0 ? 1 : 0.98 }}
         className="w-full bg-gradient-to-r from-[#F7B500] via-amber-500 to-[#F7B500] text-white py-4 rounded-xl font-bold text-lg shadow-2xl hover:shadow-3xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
       >
         <div className="relative z-10">
@@ -318,6 +345,8 @@ export default function DonationForm() {
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               <span>Processing Your Gift...</span>
             </div>
+          ) : projects.length === 0 ? (
+            "No Projects Available"
           ) : (
             `Give ₦${displayAmount.toLocaleString()} Now`
           )}

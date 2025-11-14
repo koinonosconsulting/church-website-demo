@@ -109,6 +109,8 @@ export async function PUT(
         title: data.title,
         branchId: data.branchId,
         targetAmount: data.targetAmount || 0,
+        description: data.description,
+        isActive: data.isActive !== undefined ? data.isActive : true,
       },
     });
 
